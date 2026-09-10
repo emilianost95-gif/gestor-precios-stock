@@ -28,7 +28,7 @@ import { productsToCSV } from '@/services/csvService';
 import { useToast } from '@/context/ToastContext';
 import type { ProductFilters, SortField, StockFilter } from '@/types';
 import { formatNumber, formatRelative } from '@/utils/format';
-import { downloadTextFile, timestampedFilename } from '@/utils/file';
+import { describeSaveOutcome, downloadTextFile, timestampedFilename } from '@/utils/file';
 
 const STOCK_FILTERS: { value: StockFilter; label: string }[] = [
   { value: 'todos', label: 'Todos' },
@@ -104,18 +104,22 @@ export function ProductsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (products.length === 0) {
       toast.warning('No hay productos', 'Creá al menos un producto antes de exportar.');
       return;
     }
-    downloadTextFile(
-      timestampedFilename('productos', 'csv'),
-      productsToCSV(products, categories, suppliers),
-      'text/csv',
-      true,
-    );
-    toast.success('CSV exportado', `${products.length} productos descargados.`);
+    try {
+      const outcome = await downloadTextFile(
+        timestampedFilename('productos', 'csv'),
+        productsToCSV(products, categories, suppliers),
+        'text/csv',
+        true,
+      );
+      toast.success('CSV exportado', `${products.length} productos. ${describeSaveOutcome(outcome)}`);
+    } catch {
+      toast.error('No se pudo guardar el archivo');
+    }
   };
 
   return (

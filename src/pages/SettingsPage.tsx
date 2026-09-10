@@ -28,7 +28,12 @@ import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { snapshotToJSON, validateBackup, type BackupValidationResult } from '@/services/backupService';
 import { csvTemplate, productsToCSV } from '@/services/csvService';
-import { downloadTextFile, readFileAsText, timestampedFilename } from '@/utils/file';
+import {
+  describeSaveOutcome,
+  downloadTextFile,
+  readFileAsText,
+  timestampedFilename,
+} from '@/utils/file';
 import { CURRENCIES, type CurrencyCode, type ThemeMode } from '@/types';
 import { formatDateTime } from '@/utils/format';
 
@@ -63,27 +68,38 @@ export function SettingsPage() {
   const [restoreOpen, setRestoreOpen] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExportBackup = () => {
-    downloadTextFile(
-      timestampedFilename('respaldo_gestor', 'json'),
-      snapshotToJSON(getSnapshot()),
-      'application/json',
-    );
-    toast.success('Respaldo descargado', `${products.length} productos incluidos.`);
+  const handleExportBackup = async () => {
+    try {
+      const outcome = await downloadTextFile(
+        timestampedFilename('respaldo_gestor', 'json'),
+        snapshotToJSON(getSnapshot()),
+        'application/json',
+      );
+      toast.success(
+        'Respaldo generado',
+        `${products.length} productos incluidos. ${describeSaveOutcome(outcome)}`,
+      );
+    } catch {
+      toast.error('No se pudo guardar el respaldo');
+    }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (products.length === 0) {
       toast.warning('No hay productos para exportar');
       return;
     }
-    downloadTextFile(
-      timestampedFilename('productos', 'csv'),
-      productsToCSV(products, categories, suppliers),
-      'text/csv',
-      true,
-    );
-    toast.success('CSV exportado', `${products.length} productos descargados.`);
+    try {
+      const outcome = await downloadTextFile(
+        timestampedFilename('productos', 'csv'),
+        productsToCSV(products, categories, suppliers),
+        'text/csv',
+        true,
+      );
+      toast.success('CSV exportado', `${products.length} productos. ${describeSaveOutcome(outcome)}`);
+    } catch {
+      toast.error('No se pudo guardar el archivo');
+    }
   };
 
   const handleBackupFile = async (file: File) => {
@@ -326,7 +342,9 @@ export function SettingsPage() {
           </Button>
           <Button
             variant="ghost"
-            onClick={() => downloadTextFile('plantilla_productos.csv', csvTemplate(), 'text/csv', true)}
+            onClick={() => {
+              void downloadTextFile('plantilla_productos.csv', csvTemplate(), 'text/csv', true);
+            }}
             icon={<FileSpreadsheet className="h-4 w-4" />}
           >
             Descargar plantilla

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, GraduationCap, X } from 'lucide-react';
+import { pushLayer } from '@/native/backStack';
 import { useTour } from '@/context/TourContext';
 
 interface Rect {
@@ -96,6 +97,12 @@ export function TourOverlay() {
 
   const activeTarget = step?.target ?? singleSpotlight?.target;
   const rect = useTargetRect(activeTarget);
+
+  // El botón atrás de Android corta la guía sin salir de la aplicación.
+  useEffect(() => {
+    if (!lesson && !singleSpotlight) return;
+    return pushLayer(lesson ? stop : clearSpotlight);
+  }, [lesson, singleSpotlight, stop, clearSpotlight]);
 
   useEffect(() => {
     if (!lesson && !singleSpotlight) return;

@@ -9,6 +9,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { pushLayer } from '@/native/backStack';
 import { useCopilot } from '@/context/CopilotContext';
 import { useTour } from '@/context/TourContext';
 import { CopilotMessageBubble } from './CopilotMessageBubble';
@@ -63,6 +64,12 @@ export function CopilotPanel() {
       previouslyFocused.current?.focus?.();
     };
   }, [visible]);
+
+  // El botón atrás de Android minimiza el Copiloto en vez de salir de la app.
+  useEffect(() => {
+    if (!visible) return;
+    return pushLayer(() => setMinimized(true));
+  }, [visible, setMinimized]);
 
   useEffect(() => {
     if (!visible) return;

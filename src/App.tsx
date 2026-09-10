@@ -15,12 +15,23 @@ import { HistoryPage } from '@/pages/HistoryPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { useApplyTheme } from '@/hooks/useTheme';
+import { useNativeShell } from '@/native';
 
 /** Aplica el tema guardado. Vive dentro del StoreProvider a propósito. */
 function ThemeGate({ children }: { children: React.ReactNode }) {
   const { settings } = useStore();
   useApplyTheme(settings.theme);
   return <>{children}</>;
+}
+
+/**
+ * Conecta la app con Android (botón atrás, barra de estado, splash).
+ * En el navegador no hace nada, por eso puede estar siempre montado.
+ * Vive dentro del router porque necesita saber en qué pantalla estamos.
+ */
+function NativeShell() {
+  useNativeShell();
+  return null;
 }
 
 export default function App() {
@@ -33,6 +44,7 @@ export default function App() {
               <ProductActionsProvider>
                 <TourProvider>
                   <CopilotProvider>
+                    <NativeShell />
                     <Routes>
                       <Route element={<AppLayout />}>
                         <Route index element={<DashboardPage />} />

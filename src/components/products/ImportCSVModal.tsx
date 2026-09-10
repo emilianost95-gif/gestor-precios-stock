@@ -113,9 +113,9 @@ export function ImportCSVModal({ open, onClose }: ImportCSVModalProps) {
             </Button>
             <Button
               variant="ghost"
-              onClick={() =>
-                downloadTextFile('plantilla_productos.csv', csvTemplate(), 'text/csv', true)
-              }
+              onClick={() => {
+                void downloadTextFile('plantilla_productos.csv', csvTemplate(), 'text/csv', true);
+              }}
               icon={<Download className="h-4 w-4" />}
             >
               Descargar plantilla

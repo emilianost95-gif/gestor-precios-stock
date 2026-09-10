@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { pushLayer } from '@/native/backStack';
 
 interface ModalProps {
   open: boolean;
@@ -55,6 +56,13 @@ export function Modal({
       previouslyFocused.current?.focus?.();
     };
   }, [open]);
+
+  // Mientras está abierto, el botón atrás de Android cierra este diálogo
+  // en lugar de navegar hacia atrás o salir de la aplicación.
+  useEffect(() => {
+    if (!open) return;
+    return pushLayer(onClose);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (!open) return;
