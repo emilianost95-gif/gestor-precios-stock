@@ -1,0 +1,126 @@
+name: APK de Android
+
+# Compila la aplicación Android en los servidores de GitHub y deja el APK
+# listo para descargar. No hace falta tener Android Studio instalado.
+#
+#   · Se dispara solo en cada push a main.
+#   · También se puede lanzar a mano desde la pestaña "Actions".
+#
+# El APK queda como "artifact" al final de la ejecución, y además se publica
+# como Release cuando se sube una etiqueta (por ejemplo `v1.0.0`).
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      variante:
+        description: 'Qué versión compilar'
+        required: true
+        default: 'debug'
+        type: choice
+        options: [debug, release]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Preparar el SDK de Android
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar tipos
+        run: npm run typecheck
+
+      - name: Compilar la aplicación web
+        run: npm run build:app
+        env:
+          # URL pública del endpoint del Copiloto. NO es un secreto: la API key
+          # del proveedor de IA vive únicamente en ese servidor. Si queda vacía,
+          # el Copiloto funciona con su motor de análisis local.
+          VITE_COPILOT_API_URL: ${{ vars.VITE_COPILOT_API_URL }}
+
+      - name: Copiar los archivos web al proyecto Android
+        run: npx cap sync android
+
+      - name: Decidir la variante
+        id: variante
+        run: |
+          if [ "${{ github.event.inputs.variante }}" = "release" ] || [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            echo "tipo=release" >> "$GITHUB_OUTPUT"
+            echo "tarea=assembleRelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "tipo=debug" >> "$GITHUB_OUTPUT"
+            echo "tarea=assembleDebug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar la clave de firma
+        # Sólo se usa si el repositorio tiene cargado el secret ANDROID_KEYSTORE
+        # (la clave en base64). Sin él, el APK de release sale sin firmar.
+        if: steps.variante.outputs.tipo == 'release'
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/firma.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/firma.jks" >> "$GITHUB_ENV"
+            echo "Clave de firma cargada."
+          else
+            echo "Sin clave de firma configurada: el APK saldrá sin firmar."
+          fi
+
+      - name: Compilar el APK
+        working-directory: android
+        # El chmod es por si el permiso de ejecución se perdió al copiar el
+        # proyecto desde Windows o desde un ZIP.
+        run: |
+          chmod +x gradlew
+          ./gradlew ${{ steps.variante.outputs.tarea }} --no-daemon
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Renombrar el APK
+        id: apk
+        run: |
+          origen=$(find android/app/build/outputs/apk -name '*.apk' | head -1)
+          destino="precios-y-stock-${{ steps.variante.outputs.tipo }}.apk"
+          cp "$origen" "$destino"
+          echo "ruta=$destino" >> "$GITHUB_OUTPUT"
+          ls -lh "$destino"
+
+      - name: Publicar el APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: precios-y-stock-apk
+          path: ${{ steps.apk.outputs.ruta }}
+          retention-days: 30
+
+      - name: Adjuntarlo a la Release (sólo con etiqueta)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.apk.outputs.ruta }}
