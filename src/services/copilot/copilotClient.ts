@@ -1,6 +1,7 @@
 import { getInventoryContext } from './inventoryContext';
 import { answerLocally, type EngineDeps } from './localEngine';
 import { parseAction } from './actions';
+import { isToolName, runTool } from './toolRegistry';
 import type { CopilotReply, CopilotTable } from './types';
 
 /**
@@ -66,14 +67,17 @@ export async function askCopilot({ question, deps, history }: AskOptions): Promi
     return answerLocally(question, deps);
   }
 
-  const context = getInventoryContext({
-    products: deps.products,
-    categories: deps.categories,
-    suppliers: deps.suppliers,
-    movements: deps.movements,
-    priceChanges: deps.priceChanges,
-    settings: deps.settings,
-  });
+  const context = getInventoryContext(
+    {
+      products: deps.products,
+      categories: deps.categories,
+      suppliers: deps.suppliers,
+      movements: deps.movements,
+      priceChanges: deps.priceChanges,
+      settings: deps.settings,
+    },
+    { ui: deps.ui },
+  );
 
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -93,6 +97,19 @@ export async function askCopilot({ question, deps, history }: AskOptions): Promi
       throw new Error('Respuesta con formato inesperado');
     }
 
+    // Si el modelo eligió una herramienta del registro, la ejecuta la app con
+    // los datos locales. Así el modelo decide QUÉ mirar y la aplicación calcula
+    // los números: nunca se muestran cifras inventadas.
+    if (typeof data.tool === 'string' && isToolName(data.tool)) {
+      const args = isRecord(data.args) ? data.args : {};
+      const local = runTool(data.tool, args, deps);
+      return {
+        ...local,
+        source: 'ia',
+        text: data.text.trim() || local.text,
+      };
+    }
+
     // La acción propuesta por el modelo se valida contra el inventario real.
     // Si no pasa la validación, se ignora: la respuesta queda como texto.
     const action = data.action
@@ -101,6 +118,7 @@ export async function askCopilot({ question, deps, history }: AskOptions): Promi
 
     return {
       source: 'ia',
+      tool: typeof data.tool === 'string' ? data.tool : undefined,
       text: data.text,
       bullets: Array.isArray(data.bullets)
         ? data.bullets.filter((b): b is string => typeof b === 'string').slice(0, 12)

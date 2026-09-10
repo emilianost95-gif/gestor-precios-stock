@@ -11,6 +11,8 @@ interface ModalProps {
   footer?: ReactNode;
   /** sm para diálogos cortos, lg para formularios completos. */
   size?: 'sm' | 'md' | 'lg';
+  /** Identificador para que la guía visual pueda resaltar este diálogo. */
+  tourId?: string;
 }
 
 const SIZES = {
@@ -22,7 +24,16 @@ const SIZES = {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  tourId,
+}: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
@@ -83,6 +94,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       />
       <div
         ref={panelRef}
+        data-tour={tourId}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

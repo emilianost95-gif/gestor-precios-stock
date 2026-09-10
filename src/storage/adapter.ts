@@ -12,11 +12,30 @@ export interface StorageAdapter {
   read<T>(key: string): Promise<T | null>;
   write<T>(key: string, value: T): Promise<void>;
   remove(key: string): Promise<void>;
-  /** Borra únicamente las claves de esta aplicación. */
+  /** Borra únicamente las claves de esta aplicación en el espacio activo. */
   clearAll(keys: string[]): Promise<void>;
   /** true si el motor está disponible en este navegador. */
   isAvailable(): boolean;
+  /** Cambia el espacio de trabajo activo (datos reales o demostración). */
+  setWorkspace(workspace: Workspace): void;
+  getWorkspace(): Workspace;
 }
+
+/**
+ * Espacios de trabajo separados.
+ *
+ * `real` guarda en `gps:*` y `demo` en `gps:demo:*`. Son dos conjuntos de
+ * claves distintos en el mismo `localStorage`: nada de lo que se haga dentro
+ * del modo demostración puede tocar los datos reales del negocio, porque
+ * físicamente se escriben en otro lado.
+ */
+export type Workspace = 'real' | 'demo';
+
+/** Clave con el espacio activo. Vive fuera de ambos espacios, a propósito. */
+export const WORKSPACE_KEY = 'gps:workspace';
+
+/** Progreso del tutorial del Copiloto. También fuera de los espacios. */
+export const LESSONS_KEY = 'gps:copilot-lessons';
 
 /** Claves usadas en el almacenamiento. Prefijadas para no chocar con otras apps. */
 export const STORAGE_KEYS = {

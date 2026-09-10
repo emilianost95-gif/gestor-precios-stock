@@ -1,13 +1,15 @@
 import { Info, Sparkles } from 'lucide-react';
 import { CopilotDataTable } from './CopilotDataTable';
 import { ActionPreviewCard } from './ActionPreviewCard';
-import type { CopilotMessage } from '@/services/copilot';
+import { CopilotActionButtons } from './CopilotActionButtons';
+import type { CopilotMessage, CopilotUiAction } from '@/services/copilot';
 
 interface CopilotMessageBubbleProps {
   message: CopilotMessage;
   onFollowUp: (question: string) => void;
   onApplyAction: (messageId: string) => void;
   onDismissAction: (messageId: string) => void;
+  onRunAction: (action: CopilotUiAction) => void;
 }
 
 export function CopilotMessageBubble({
@@ -15,6 +17,7 @@ export function CopilotMessageBubble({
   onFollowUp,
   onApplyAction,
   onDismissAction,
+  onRunAction,
 }: CopilotMessageBubbleProps) {
   if (message.role === 'user') {
     return (
@@ -64,6 +67,10 @@ export function CopilotMessageBubble({
           )}
 
           {message.table && <CopilotDataTable table={message.table} />}
+
+          {message.actions && message.actions.length > 0 && (
+            <CopilotActionButtons actions={message.actions} onRun={onRunAction} />
+          )}
 
           {message.preview && (
             <ActionPreviewCard

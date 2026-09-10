@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowDownUp,
   Copy,
@@ -18,6 +19,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListSkeleton } from '@/components/ui/Skeleton';
 import { ImportCSVModal } from '@/components/products/ImportCSVModal';
 import { useStore } from '@/context/StoreContext';
+import { useRegisterCopilotContext } from '@/context/CopilotContext';
 import { useProductActions } from '@/context/ProductActionsContext';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -50,13 +52,32 @@ export function ProductsPage() {
   const { money } = useCurrency();
   const toast = useToast();
 
-  const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState<string | 'todas'>('todas');
-  const [stock, setStock] = useState<StockFilter>('todos');
+  // El Copiloto puede abrir esta pantalla ya filtrada: /productos?stock=bajo
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
+  const [categoryId, setCategoryId] = useState<string | 'todas'>(
+    () => searchParams.get('categoria') ?? 'todas',
+  );
+  const [stock, setStock] = useState<StockFilter>(
+    () => (searchParams.get('stock') as StockFilter) ?? 'todos',
+  );
   const [sortBy, setSortBy] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(
+    () => Boolean(searchParams.get('stock') || searchParams.get('categoria')),
+  );
   const [importOpen, setImportOpen] = useState(false);
+
+  // Si llega un filtro por la URL se aplica una vez y la URL queda limpia.
+  useEffect(() => {
+    if (searchParams.get('q') || searchParams.get('stock') || searchParams.get('categoria')) {
+      setSearch(searchParams.get('q') ?? '');
+      setCategoryId(searchParams.get('categoria') ?? 'todas');
+      setStock((searchParams.get('stock') as StockFilter) ?? 'todos');
+      setShowFilters(Boolean(searchParams.get('stock') || searchParams.get('categoria')));
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const debouncedSearch = useDebounce(search, 150);
 
@@ -66,6 +87,12 @@ export function ProductsPage() {
   );
 
   const filtered = useFilteredProducts(filters);
+
+  useRegisterCopilotContext({
+    search: debouncedSearch || undefined,
+    categoryFilterId: categoryId !== 'todas' ? categoryId : undefined,
+    stockFilter: stock,
+  });
   const activeFilters = (categoryId !== 'todas' ? 1 : 0) + (stock !== 'todos' ? 1 : 0);
 
   const toggleSort = (field: SortField) => {
@@ -114,7 +141,12 @@ export function ProductsPage() {
           >
             Importar CSV
           </Button>
-          <Button size="sm" onClick={newProduct} icon={<Plus className="h-4 w-4" />}>
+          <Button
+            size="sm"
+            data-tour="nuevo-producto"
+            onClick={newProduct}
+            icon={<Plus className="h-4 w-4" />}
+          >
             Nuevo
           </Button>
         </div>
@@ -245,7 +277,7 @@ export function ProductsPage() {
         )}
       </Card>
 
-      <Card className="overflow-hidden">
+      <Card data-tour="tabla-productos" className="overflow-hidden">
         {loading ? (
           <ListSkeleton rows={6} />
         ) : filtered.length === 0 ? (
@@ -319,9 +351,10 @@ export function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {filtered.map((product) => (
+                  {filtered.map((product, index) => (
                     <tr
                       key={product.id}
+                      data-tour={index === 0 ? 'fila-producto' : undefined}
                       className="transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     >
                       <td className="px-4 py-3">
@@ -347,6 +380,7 @@ export function ProductsPage() {
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
+                          data-tour={index === 0 ? 'precio-producto' : undefined}
                           onClick={() => editPrice(product)}
                           className="rounded-lg px-2 py-1 font-semibold tabular-nums text-slate-900 transition hover:bg-brand-50 hover:text-brand-700 focus-ring dark:text-slate-100 dark:hover:bg-brand-950/50 dark:hover:text-brand-300"
                           title="Editar precio"
@@ -357,6 +391,7 @@ export function ProductsPage() {
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
+                          data-tour={index === 0 ? 'stock-producto' : undefined}
                           onClick={() => editStock(product)}
                           title="Ajustar stock"
                           className={`rounded-lg px-2 py-1 font-semibold tabular-nums transition hover:bg-slate-100 focus-ring dark:hover:bg-slate-800 ${
@@ -407,8 +442,12 @@ export function ProductsPage() {
 
             {/* Vista de tarjetas — móvil */}
             <ul className="divide-y divide-slate-200 md:hidden dark:divide-slate-800">
-              {filtered.map((product) => (
-                <li key={product.id} className="px-4 py-3">
+              {filtered.map((product, index) => (
+                <li
+                  key={product.id}
+                  data-tour={index === 0 ? 'fila-producto' : undefined}
+                  className="px-4 py-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <button
                       type="button"
@@ -449,6 +488,7 @@ export function ProductsPage() {
                   <div className="mt-2.5 grid grid-cols-2 gap-2">
                     <button
                       type="button"
+                      data-tour={index === 0 ? 'precio-producto' : undefined}
                       onClick={() => editPrice(product)}
                       className="rounded-xl border border-slate-200 px-3 py-2 text-left transition active:bg-slate-50 focus-ring dark:border-slate-800 dark:active:bg-slate-800"
                     >
@@ -459,6 +499,7 @@ export function ProductsPage() {
                     </button>
                     <button
                       type="button"
+                      data-tour={index === 0 ? 'stock-producto' : undefined}
                       onClick={() => editStock(product)}
                       className="rounded-xl border border-slate-200 px-3 py-2 text-left transition active:bg-slate-50 focus-ring dark:border-slate-800 dark:active:bg-slate-800"
                     >

@@ -35,6 +35,15 @@ export interface ContextCategory {
 export interface InventoryContext {
   negocio: { nombre: string; moneda: CurrencyCode };
   generadoEl: string;
+  /** 'demostracion' avisa al modelo que los datos son ficticios y aislados. */
+  modo: 'real' | 'demostracion';
+  /** Dónde está parado el usuario ahora mismo. */
+  pantallaActual?: {
+    seccion: string;
+    productoAbierto: { id: string; nombre: string } | null;
+    busqueda: string | null;
+    filtroStock: string | null;
+  };
   totales: {
     productos: number;
     categorias: number;
@@ -106,6 +115,13 @@ export type CopilotAction =
       type: 'stock-minimo-masivo';
       value: number;
       scope: ActionScope;
+    }
+  | {
+      /** Ajuste de stock de un producto puntual. */
+      type: 'stock-producto';
+      productId: string;
+      mode: 'fijar' | 'sumar' | 'restar';
+      value: number;
     };
 
 export interface ActionPreviewItem {
@@ -140,16 +156,79 @@ export interface CopilotTable {
   caption?: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Efectos de interfaz que el Copiloto puede disparar                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un efecto NO modifica datos: mueve la interfaz. Sirve para que el Copiloto
+ * pueda enseñar y acompañar (abrir una ficha, navegar, resaltar, arrancar una
+ * lección) sin tocar el inventario.
+ */
+export type CopilotEffect =
+  | { kind: 'navegar'; to: string }
+  | { kind: 'abrir-producto'; productId: string }
+  | { kind: 'editar-precio'; productId: string }
+  | { kind: 'editar-stock'; productId: string }
+  | { kind: 'nuevo-producto' }
+  | { kind: 'tutorial'; lessonId: string }
+  | { kind: 'resaltar'; target: string; title: string; body: string };
+
+/** Botón que acompaña una respuesta. O pregunta algo, o dispara un efecto. */
+export interface CopilotUiAction {
+  label: string;
+  icon?: 'ver' | 'precio' | 'stock' | 'tutorial' | 'filtro' | 'analizar' | 'agregar' | 'buscar';
+  question?: string;
+  effect?: CopilotEffect;
+}
+
 export interface CopilotReply {
   text: string;
   bullets?: string[];
   table?: CopilotTable;
+  /** Operación sobre datos: pasa por vista previa y confirmación. */
   action?: CopilotAction;
+  /** Botones de acción que acompañan la respuesta. */
+  actions?: CopilotUiAction[];
+  /** Efecto de interfaz que se dispara junto con la respuesta. */
+  effect?: CopilotEffect;
   followUps?: string[];
   /** De dónde salió la respuesta: análisis local o modelo de IA. */
   source: 'local' | 'ia';
   /** Aviso mostrado en la burbuja (por ejemplo, caída del backend). */
   notice?: string;
+  /** Nombre de la herramienta que resolvió la consulta (para depurar y auditar). */
+  tool?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Contexto de la pantalla actual                                      */
+/* ------------------------------------------------------------------ */
+
+export type ScreenId =
+  | 'inicio'
+  | 'productos'
+  | 'stock'
+  | 'categorias'
+  | 'proveedores'
+  | 'historial'
+  | 'configuracion'
+  | 'otra';
+
+/** Lo que el Copiloto "ve" de la aplicación en este momento. */
+export interface CopilotUiContext {
+  screen: ScreenId;
+  screenLabel: string;
+  demoMode: boolean;
+  /** Producto abierto en la ficha de detalle, si hay uno. */
+  selectedProductId?: string;
+  /** Texto escrito en el buscador de la pantalla actual. */
+  search?: string;
+  /** Filtros activos en Productos. */
+  categoryFilterId?: string;
+  stockFilter?: string;
+  /** Pestaña activa en Stock. */
+  tab?: string;
 }
 
 export interface CopilotMessage {
@@ -160,6 +239,7 @@ export interface CopilotMessage {
   bullets?: string[];
   table?: CopilotTable;
   preview?: ActionPreview;
+  actions?: CopilotUiAction[];
   followUps?: string[];
   source?: 'local' | 'ia';
   notice?: string;

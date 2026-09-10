@@ -1,8 +1,16 @@
 export * from './types';
 export * from './insights';
 export * from './actions';
+export * from './presenters';
+export * from './appContext';
+export { CONCEPTS, findConcept } from './concepts';
+export type { Concept } from './concepts';
 export { getInventoryContext, buildLastMovementMap, buildLastPriceChangeMap } from './inventoryContext';
 export type { InventorySource } from './inventoryContext';
-export { answerLocally } from './localEngine';
+export { TOOLS, runTool, isToolName, describeTools } from './toolRegistry';
+export type { CopilotTool, ToolArgs, ToolContext, ToolName, ToolResult } from './toolRegistry';
+export { answerLocally, resolveIntent } from './localEngine';
 export type { EngineDeps } from './localEngine';
 export { askCopilot, isAiBackendConfigured, COPILOT_API_URL } from './copilotClient';
+export { LESSONS, getLesson, lessonProgress } from './tours';
+export type { Lesson, LessonId, TourStep } from './tours';

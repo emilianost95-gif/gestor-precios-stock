@@ -5,6 +5,8 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Ancla para la guía visual del Copiloto. */
+  'data-tour'?: string;
   variant?: Variant;
   size?: Size;
   loading?: boolean;
@@ -56,6 +58,7 @@ export function Button({
 }
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  'data-tour'?: string;
   label: string;
   variant?: Variant;
   children: ReactNode;

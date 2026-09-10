@@ -4,11 +4,14 @@ interface CardProps {
   children: ReactNode;
   className?: string;
   as?: 'div' | 'section' | 'article' | 'li';
+  /** Ancla para la guía visual del Copiloto. */
+  'data-tour'?: string;
 }
 
-export function Card({ children, className = '', as: Tag = 'div' }: CardProps) {
+export function Card({ children, className = '', as: Tag = 'div', ...rest }: CardProps) {
   return (
     <Tag
+      {...rest}
       className={`rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 ${className}`}
     >
       {children}

@@ -9,7 +9,13 @@ import type {
   Supplier,
 } from '@/types';
 import { DEFAULT_SETTINGS } from '@/data/defaults';
-import { ALL_STORAGE_KEYS, SCHEMA_VERSION, STORAGE_KEYS, type StorageAdapter } from './adapter';
+import {
+  ALL_STORAGE_KEYS,
+  SCHEMA_VERSION,
+  STORAGE_KEYS,
+  type StorageAdapter,
+  type Workspace,
+} from './adapter';
 
 /**
  * Fachada de datos que usa toda la aplicación.
@@ -32,6 +38,9 @@ export interface DataSource {
   clear(): Promise<void>;
   /** true si el primer arranque todavía no tiene datos guardados. */
   isEmpty(): Promise<boolean>;
+  /** Cambia entre los datos reales y los de demostración. */
+  setWorkspace(workspace: Workspace): void;
+  getWorkspace(): Workspace;
 }
 
 export class LocalDataSource implements DataSource {
@@ -120,5 +129,13 @@ export class LocalDataSource implements DataSource {
 
   async markSeeded(): Promise<void> {
     await this.adapter.write(STORAGE_KEYS.meta, { version: SCHEMA_VERSION, seeded: true });
+  }
+
+  setWorkspace(workspace: Workspace): void {
+    this.adapter.setWorkspace(workspace);
+  }
+
+  getWorkspace(): Workspace {
+    return this.adapter.getWorkspace();
   }
 }

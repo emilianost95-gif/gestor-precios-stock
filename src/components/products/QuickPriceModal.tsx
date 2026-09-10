@@ -85,6 +85,7 @@ export function QuickPriceModal({ open, onClose, product }: QuickPriceModalProps
       open={open}
       onClose={onClose}
       size="sm"
+      tourId="editor-precio"
       title="Editar precio"
       description={product.name}
       footer={

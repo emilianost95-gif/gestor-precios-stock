@@ -20,8 +20,8 @@ import type {
   StockMovement,
   Supplier,
 } from '@/types';
-import { dataSource } from '@/storage';
-import { SCHEMA_VERSION } from '@/storage/adapter';
+import { dataSource, readSavedWorkspace, saveWorkspace } from '@/storage';
+import { SCHEMA_VERSION, type Workspace } from '@/storage/adapter';
 import { DEFAULT_SETTINGS, pickCategoryColor } from '@/data/defaults';
 import { buildDemoSnapshot, buildEmptySnapshot } from '@/data/demoData';
 import { createId, nowISO } from '@/utils/id';
@@ -49,7 +49,9 @@ interface StoreState {
   activity: ActivityLog[];
   settings: Settings;
   loading: boolean;
-  isDemoData: boolean;
+  /** true mientras se trabaja sobre los datos de demostración. */
+  demoMode: boolean;
+  workspace: Workspace;
 }
 
 interface StoreActions {
@@ -81,7 +83,12 @@ interface StoreActions {
   updateSupplier: (id: string, input: Partial<SupplierInput>) => void;
   deleteSupplier: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  loadDemoData: () => void;
+  /** Entra al modo demostración: cambia de espacio y siembra el catálogo ficticio. */
+  enterDemoMode: () => void;
+  /** Vuelve a los datos reales del negocio. */
+  exitDemoMode: () => void;
+  /** Devuelve la demo a su estado inicial sin salir del modo. */
+  resetDemoData: () => void;
   clearAllData: () => void;
   importProducts: (rows: ParsedProductRow[]) => ImportSummary;
   restoreSnapshot: (snapshot: DatabaseSnapshot) => void;
@@ -107,62 +114,97 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [activity, setActivity] = useState<ActivityLog[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
-  const [isDemoData, setIsDemoData] = useState(false);
+  const [workspace, setWorkspace] = useState<Workspace>('real');
 
   const hydrated = useRef(false);
+  /**
+   * Se apaga mientras se cambia de espacio de trabajo, para que ningún efecto
+   * de persistencia escriba el estado viejo en el espacio nuevo.
+   */
+  const canPersist = useRef(false);
 
   /* ------------------------------------------------------------------ */
   /* Carga inicial                                                       */
   /* ------------------------------------------------------------------ */
+  /** Vuelca un snapshot al estado de React. No escribe en disco. */
+  const hydrateFrom = useCallback((snapshot: DatabaseSnapshot) => {
+    setProducts(snapshot.products);
+    setCategories(snapshot.categories);
+    setSuppliers(snapshot.suppliers);
+    setMovements(snapshot.movements);
+    setPriceChanges(snapshot.priceChanges);
+    setActivity(snapshot.activity);
+    setSettings(snapshot.settings);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let active = readSavedWorkspace();
+      dataSource.setWorkspace(active);
+
+      // Migración: las versiones anteriores cargaban la demo encima de los
+      // datos reales. Si el espacio real contiene sólo el catálogo ficticio
+      // (ids con prefijo `prd_`), se lo mueve al espacio demo y se deja el
+      // espacio real limpio.
+      if (active === 'real') {
+        const current = await dataSource.loadSnapshot();
+        const looksLikeDemo =
+          current.products.length > 0 && current.products.every((p) => p.id.startsWith('prd_'));
+        if (looksLikeDemo) {
+          await dataSource.clear();
+          dataSource.setWorkspace('demo');
+          await dataSource.replaceAll(current);
+          saveWorkspace('demo');
+          active = 'demo';
+        }
+      }
+
       const empty = await dataSource.isEmpty();
-      const snapshot = empty ? buildEmptySnapshot() : await dataSource.loadSnapshot();
+      const snapshot = empty
+        ? active === 'demo'
+          ? buildDemoSnapshot()
+          : buildEmptySnapshot()
+        : await dataSource.loadSnapshot();
       if (cancelled) return;
 
-      setProducts(snapshot.products);
-      setCategories(snapshot.categories);
-      setSuppliers(snapshot.suppliers);
-      setMovements(snapshot.movements);
-      setPriceChanges(snapshot.priceChanges);
-      setActivity(snapshot.activity);
-      setSettings(snapshot.settings);
-      setIsDemoData(snapshot.products.some((p) => p.id.startsWith('prd_')));
+      hydrateFrom(snapshot);
+      setWorkspace(active);
 
       if (empty) await dataSource.replaceAll(snapshot);
 
       hydrated.current = true;
+      canPersist.current = true;
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hydrateFrom]);
 
   /* ------------------------------------------------------------------ */
   /* Persistencia automática (una escritura por colección modificada)     */
   /* ------------------------------------------------------------------ */
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveProducts(products);
+    if (hydrated.current && canPersist.current) void dataSource.saveProducts(products);
   }, [products]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveCategories(categories);
+    if (hydrated.current && canPersist.current) void dataSource.saveCategories(categories);
   }, [categories]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveSuppliers(suppliers);
+    if (hydrated.current && canPersist.current) void dataSource.saveSuppliers(suppliers);
   }, [suppliers]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveMovements(movements);
+    if (hydrated.current && canPersist.current) void dataSource.saveMovements(movements);
   }, [movements]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.savePriceChanges(priceChanges);
+    if (hydrated.current && canPersist.current) void dataSource.savePriceChanges(priceChanges);
   }, [priceChanges]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveActivity(activity);
+    if (hydrated.current && canPersist.current) void dataSource.saveActivity(activity);
   }, [activity]);
   useEffect(() => {
-    if (hydrated.current) void dataSource.saveSettings(settings);
+    if (hydrated.current && canPersist.current) void dataSource.saveSettings(settings);
   }, [settings]);
 
   /* ------------------------------------------------------------------ */
@@ -551,33 +593,68 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSettings((prev) => ({ ...prev, ...patch, updatedAt: nowISO() }));
   }, []);
 
-  const applySnapshot = useCallback((snapshot: DatabaseSnapshot) => {
-    setProducts(snapshot.products);
-    setCategories(snapshot.categories);
-    setSuppliers(snapshot.suppliers);
-    setMovements(snapshot.movements);
-    setPriceChanges(snapshot.priceChanges);
-    setActivity(snapshot.activity);
-    setSettings(snapshot.settings);
-    void dataSource.replaceAll(snapshot);
-  }, []);
+  const applySnapshot = useCallback(
+    (snapshot: DatabaseSnapshot) => {
+      hydrateFrom(snapshot);
+      void dataSource.replaceAll(snapshot);
+    },
+    [hydrateFrom],
+  );
 
-  const loadDemoData = useCallback(() => {
-    applySnapshot(buildDemoSnapshot());
-    setIsDemoData(true);
-    log('datos.demo', 'Se cargaron los datos de demostración');
-  }, [applySnapshot, log]);
+  /**
+   * Cambia de espacio de trabajo.
+   *
+   * Corta la persistencia mientras dura el cambio para que el estado del
+   * espacio anterior no pueda escribirse en el nuevo, y recién la reactiva
+   * cuando el estado ya corresponde al espacio destino.
+   */
+  const switchWorkspace = useCallback(
+    async (target: Workspace, seed?: DatabaseSnapshot) => {
+      canPersist.current = false;
+      dataSource.setWorkspace(target);
+      saveWorkspace(target);
+
+      let snapshot: DatabaseSnapshot;
+      if (seed) {
+        snapshot = seed;
+        await dataSource.replaceAll(snapshot);
+      } else {
+        const empty = await dataSource.isEmpty();
+        snapshot = empty
+          ? target === 'demo'
+            ? buildDemoSnapshot()
+            : buildEmptySnapshot()
+          : await dataSource.loadSnapshot();
+        if (empty) await dataSource.replaceAll(snapshot);
+      }
+
+      hydrateFrom(snapshot);
+      setWorkspace(target);
+      canPersist.current = true;
+    },
+    [hydrateFrom],
+  );
+
+  const enterDemoMode = useCallback(() => {
+    void switchWorkspace('demo');
+  }, [switchWorkspace]);
+
+  const exitDemoMode = useCallback(() => {
+    void switchWorkspace('real');
+  }, [switchWorkspace]);
+
+  const resetDemoData = useCallback(() => {
+    void switchWorkspace('demo', buildDemoSnapshot());
+  }, [switchWorkspace]);
 
   const clearAllData = useCallback(() => {
     applySnapshot(buildEmptySnapshot());
-    setIsDemoData(false);
     log('datos.limpiados', 'Se limpiaron todos los datos');
   }, [applySnapshot, log]);
 
   const restoreSnapshot = useCallback<StoreActions['restoreSnapshot']>(
     (snapshot) => {
       applySnapshot(snapshot);
-      setIsDemoData(false);
       log('datos.restaurados', `Se restauró un respaldo con ${snapshot.products.length} productos`);
     },
     [applySnapshot, log],
@@ -720,7 +797,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activity,
       settings,
       loading,
-      isDemoData,
+      demoMode: workspace === 'demo',
+      workspace,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -736,7 +814,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateSupplier,
       deleteSupplier,
       updateSettings,
-      loadDemoData,
+      enterDemoMode,
+      exitDemoMode,
+      resetDemoData,
       clearAllData,
       importProducts,
       restoreSnapshot,
@@ -753,7 +833,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activity,
       settings,
       loading,
-      isDemoData,
+      workspace,
       createProduct,
       updateProduct,
       deleteProduct,
@@ -769,7 +849,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateSupplier,
       deleteSupplier,
       updateSettings,
-      loadDemoData,
+      enterDemoMode,
+      exitDemoMode,
+      resetDemoData,
       clearAllData,
       importProducts,
       restoreSnapshot,

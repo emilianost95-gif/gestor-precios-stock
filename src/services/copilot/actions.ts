@@ -51,6 +51,56 @@ export function buildActionPreview(
   products: ProductView[],
   moneyFormatter: (value: number) => string,
 ): ActionPreview {
+  // Ajuste de stock de un producto puntual: vista previa propia.
+  if (action.type === 'stock-producto') {
+    const product = products.find((p) => p.id === action.productId);
+    if (!product) {
+      return {
+        action,
+        title: 'Producto no encontrado',
+        description: 'El producto de la acción ya no está en el inventario.',
+        items: [],
+        count: 0,
+        totalBefore: 0,
+        totalAfter: 0,
+        warnings: [],
+        executable: false,
+      };
+    }
+    const after =
+      action.mode === 'fijar'
+        ? Math.max(0, Math.round(action.value))
+        : action.mode === 'sumar'
+          ? product.stock + Math.round(action.value)
+          : Math.max(0, product.stock - Math.round(action.value));
+
+    const stockWarnings: string[] = [];
+    if (after <= 0) stockWarnings.push('El producto quedaría sin stock.');
+    else if (after <= product.minStock) {
+      stockWarnings.push(`Quedaría en o por debajo de su stock mínimo (${product.minStock}).`);
+    }
+
+    return {
+      action,
+      title:
+        action.mode === 'fijar'
+          ? `Fijar el stock de ${product.name} en ${after}`
+          : action.mode === 'sumar'
+            ? `Agregar ${Math.round(action.value)} unidades a ${product.name}`
+            : `Descontar ${Math.round(action.value)} unidades de ${product.name}`,
+      description: `El stock pasaría de ${product.stock} a ${after} y queda registrado como movimiento.`,
+      items:
+        after === product.stock
+          ? []
+          : [{ id: product.id, name: product.name, before: product.stock, after, delta: after - product.stock }],
+      count: after === product.stock ? 0 : 1,
+      totalBefore: 0,
+      totalAfter: 0,
+      warnings: stockWarnings,
+      executable: after !== product.stock,
+    };
+  }
+
   const affected = resolveScope(action.scope, products);
   const warnings: string[] = [];
 
@@ -181,6 +231,16 @@ export function parseAction(
   categories: Category[],
 ): CopilotAction | null {
   if (!isRecord(raw)) return null;
+
+  if (raw.type === 'stock-producto') {
+    const productId = typeof raw.productId === 'string' ? raw.productId : '';
+    if (!products.some((p) => p.id === productId)) return null;
+    const mode = raw.mode;
+    if (mode !== 'fijar' && mode !== 'sumar' && mode !== 'restar') return null;
+    const value = Number(raw.value);
+    if (!Number.isFinite(value) || value < 0 || value > 1_000_000) return null;
+    return { type: 'stock-producto', productId, mode, value: Math.round(value) };
+  }
 
   const scope = parseScope(raw.scope, products, categories);
   if (!scope) return null;

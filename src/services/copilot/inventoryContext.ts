@@ -7,7 +7,7 @@ import type {
   Supplier,
 } from '@/types';
 import { getCategoryBreakdown } from '@/services/productService';
-import type { ContextProduct, InventoryContext } from './types';
+import type { ContextProduct, CopilotUiContext, InventoryContext } from './types';
 
 /** Tope de productos enviados al modelo. Suficiente para un almacén real. */
 const MAX_CONTEXT_PRODUCTS = 150;
@@ -58,7 +58,7 @@ export function buildLastPriceChangeMap(changes: PriceChange[]): Map<string, Pri
  */
 export function getInventoryContext(
   source: InventorySource,
-  options: { maxProducts?: number } = {},
+  options: { maxProducts?: number; ui?: CopilotUiContext } = {},
 ): InventoryContext {
   const { products, categories, suppliers, movements, priceChanges, settings } = source;
   const maxProducts = options.maxProducts ?? MAX_CONTEXT_PRODUCTS;
@@ -122,9 +122,22 @@ export function getInventoryContext(
     vaciosDeDatos.push('No hay proveedores cargados.');
   }
 
+  const openProduct = options.ui?.selectedProductId
+    ? products.find((p) => p.id === options.ui?.selectedProductId)
+    : undefined;
+
   return {
     negocio: { nombre: settings.businessName || 'Mi negocio', moneda: settings.currency },
     generadoEl: new Date().toISOString(),
+    modo: options.ui?.demoMode ? 'demostracion' : 'real',
+    pantallaActual: options.ui
+      ? {
+          seccion: options.ui.screenLabel,
+          productoAbierto: openProduct ? { id: openProduct.id, nombre: openProduct.name } : null,
+          busqueda: options.ui.search || null,
+          filtroStock: options.ui.stockFilter && options.ui.stockFilter !== 'todos' ? options.ui.stockFilter : null,
+        }
+      : undefined,
     totales: {
       productos: products.length,
       categorias: categories.length,

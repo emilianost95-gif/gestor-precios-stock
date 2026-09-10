@@ -5,6 +5,8 @@ import {
   Database,
   Download,
   FileSpreadsheet,
+  FlaskConical,
+  LogOut,
   Monitor,
   Moon,
   Palette,
@@ -46,9 +48,11 @@ export function SettingsPage() {
     movements,
     getSnapshot,
     restoreSnapshot,
-    loadDemoData,
+    enterDemoMode,
+    exitDemoMode,
+    resetDemoData,
     clearAllData,
-    isDemoData,
+    demoMode,
   } = useStore();
   const toast = useToast();
   const confirm = useConfirm();
@@ -110,32 +114,40 @@ export function SettingsPage() {
     toast.success('Respaldo restaurado', 'Los datos se reemplazaron correctamente.');
   };
 
-  const handleLoadDemo = async () => {
-    const confirmed =
-      products.length === 0 ||
-      (await confirm({
-        title: 'Cargar datos de demostración',
-        message:
-          'Se van a reemplazar los datos actuales por 23 productos ficticios de ejemplo. Si tenés información real cargada, descargá un respaldo antes.',
-        confirmLabel: 'Cargar demo',
-        danger: true,
-      }));
+  const handleEnterDemo = () => {
+    enterDemoMode();
+    toast.success('Entraste al modo demostración', 'Tus datos reales quedaron guardados aparte.');
+  };
+
+  const handleExitDemo = () => {
+    exitDemoMode();
+    toast.success('Volviste a tus datos', 'Nada de la demo se copió a tu negocio.');
+  };
+
+  const handleResetDemo = async () => {
+    const confirmed = await confirm({
+      title: 'Reiniciar la demostración',
+      message: 'Se vuelve al catálogo ficticio original. Sólo afecta a la demo.',
+      confirmLabel: 'Reiniciar demo',
+      danger: true,
+    });
     if (!confirmed) return;
-    loadDemoData();
-    toast.success('Datos de demostración cargados', 'Todo lo que ves es ficticio.');
+    resetDemoData();
+    toast.success('Demo reiniciada');
   };
 
   const handleClear = async () => {
     const confirmed = await confirm({
-      title: isDemoData ? 'Limpiar datos de demostración' : 'Borrar todos los datos',
-      message:
-        'Se eliminan todos los productos, movimientos e historial de este dispositivo. Las categorías base se mantienen. Esta acción no se puede deshacer.',
+      title: demoMode ? 'Vaciar la demostración' : 'Borrar todos los datos',
+      message: demoMode
+        ? 'Se vacía el catálogo de la demo. Tus datos reales no se tocan.'
+        : 'Se eliminan todos los productos, movimientos e historial de este dispositivo. Las categorías base se mantienen. Esta acción no se puede deshacer.',
       confirmLabel: 'Sí, limpiar',
       danger: true,
     });
     if (!confirmed) return;
     clearAllData();
-    toast.success('Datos limpiados', 'Ya podés empezar a cargar tus productos reales.');
+    toast.success('Datos limpiados', 'Ya podés empezar a cargar tus productos.');
   };
 
   return (
@@ -362,19 +374,46 @@ export function SettingsPage() {
         </div>
       </Card>
 
-      <Card className="border-amber-200 dark:border-amber-900/60">
+      <Card className="border-brand-200 dark:border-brand-900/60">
         <CardHeader
-          title="Datos de demostración"
-          subtitle="Productos ficticios para probar el sistema"
-          icon={<Sparkles className="h-4 w-4" aria-hidden />}
+          title="Modo demostración"
+          subtitle={
+            demoMode
+              ? 'Estás trabajando sobre el catálogo ficticio'
+              : 'Un catálogo ficticio para probar sin riesgo'
+          }
+          icon={<FlaskConical className="h-4 w-4" aria-hidden />}
         />
-        <div className="flex flex-wrap gap-2 p-4 sm:p-5">
-          <Button variant="secondary" onClick={() => void handleLoadDemo()} icon={<Sparkles className="h-4 w-4" />}>
-            Cargar datos de demostración
-          </Button>
-          <Button variant="danger" onClick={() => void handleClear()} icon={<Trash2 className="h-4 w-4" />}>
-            {isDemoData ? 'Limpiar datos de demostración' : 'Borrar todos los datos'}
-          </Button>
+        <div className="space-y-3 p-4 sm:p-5">
+          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            La demo vive en un espacio de almacenamiento separado (<code className="font-mono text-xs">gps:demo:*</code>
+            ). Podés cambiar precios, mover stock y borrar productos ahí adentro sin que nada de eso
+            toque los datos reales de tu negocio, que quedan intactos en{' '}
+            <code className="font-mono text-xs">gps:*</code>.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {demoMode ? (
+              <>
+                <Button onClick={handleExitDemo} icon={<LogOut className="h-4 w-4" />}>
+                  Salir del modo demostración
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleResetDemo()}
+                  icon={<Sparkles className="h-4 w-4" />}
+                >
+                  Reiniciar la demo
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleEnterDemo} icon={<FlaskConical className="h-4 w-4" />}>
+                Entrar al modo demostración
+              </Button>
+            )}
+            <Button variant="danger" onClick={() => void handleClear()} icon={<Trash2 className="h-4 w-4" />}>
+              {demoMode ? 'Vaciar la demo' : 'Borrar todos los datos'}
+            </Button>
+          </div>
         </div>
       </Card>
 

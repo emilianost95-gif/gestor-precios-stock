@@ -138,6 +138,7 @@ export function ProductFormModal({ open, onClose, product }: ProductFormModalPro
       open={open}
       onClose={onClose}
       size="lg"
+      tourId="form-producto"
       title={isEditing ? 'Editar producto' : 'Nuevo producto'}
       description={
         isEditing

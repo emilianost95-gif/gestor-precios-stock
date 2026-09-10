@@ -145,6 +145,7 @@ export function StockMovementModal({ open, onClose, product }: StockMovementModa
       open={open}
       onClose={onClose}
       size="sm"
+      tourId="editor-stock"
       title="Movimiento de stock"
       description={product.name}
       footer={

@@ -23,7 +23,7 @@ export function TopBar() {
           </span>
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div data-tour="buscador-global" className="min-w-0 flex-1">
           <GlobalSearch />
         </div>
 
@@ -38,6 +38,7 @@ export function TopBar() {
         </button>
 
         <Button
+          data-tour="nuevo-producto"
           onClick={newProduct}
           icon={<Plus className="h-4 w-4" />}
           className="hidden shrink-0 lg:inline-flex"

@@ -8,6 +8,7 @@ interface StatCardProps {
   hint?: string;
   tone?: 'neutral' | 'warning' | 'danger' | 'success';
   to?: string;
+  tourId?: string;
 }
 
 const TONES = {
@@ -17,7 +18,7 @@ const TONES = {
   success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
 } as const;
 
-export function StatCard({ label, value, icon, hint, tone = 'neutral', to }: StatCardProps) {
+export function StatCard({ label, value, icon, hint, tone = 'neutral', to, tourId }: StatCardProps) {
   const content = (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -38,6 +39,7 @@ export function StatCard({ label, value, icon, hint, tone = 'neutral', to }: Sta
     return (
       <Link
         to={to}
+        data-tour={tourId}
         className={`${className} hover:border-brand-300 hover:shadow-pop focus-ring dark:hover:border-brand-800`}
       >
         {content}
@@ -45,5 +47,9 @@ export function StatCard({ label, value, icon, hint, tone = 'neutral', to }: Sta
     );
   }
 
-  return <div className={className}>{content}</div>;
+  return (
+    <div data-tour={tourId} className={className}>
+      {content}
+    </div>
+  );
 }

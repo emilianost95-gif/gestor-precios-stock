@@ -39,7 +39,7 @@ export function CopilotInsights() {
   const { insightCards, openCopilot } = useCopilot();
 
   return (
-    <section aria-labelledby="insights-title">
+    <section data-tour="insights-copilot" aria-labelledby="insights-title">
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <h2
           id="insights-title"

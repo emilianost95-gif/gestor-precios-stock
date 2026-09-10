@@ -25,7 +25,7 @@ import { useProductActions } from '@/context/ProductActionsContext';
 import { formatNumber, formatRelative } from '@/utils/format';
 
 export function DashboardPage() {
-  const { loading, settings, loadDemoData } = useStore();
+  const { loading, settings, enterDemoMode } = useStore();
   const { newProduct, editStock, editPrice } = useProductActions();
   const { money } = useCurrency();
   const {
@@ -53,8 +53,8 @@ export function DashboardPage() {
             </Button>
           }
           secondaryAction={
-            <Button variant="secondary" onClick={loadDemoData} icon={<Sparkles className="h-4 w-4" />}>
-              Cargar datos de demostración
+            <Button variant="secondary" onClick={enterDemoMode} icon={<Sparkles className="h-4 w-4" />}>
+              Probar el modo demostración
             </Button>
           }
         />
@@ -76,7 +76,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div data-tour="stat-cards" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Productos"
           value={formatNumber(stats.totalProducts)}
@@ -85,6 +85,7 @@ export function DashboardPage() {
         />
         <StatCard
           label="Valor del inventario"
+          tourId="valor-inventario"
           value={money(stats.inventoryValue)}
           hint={`Venta potencial: ${money(stats.potentialSalesValue)}`}
           icon={<DollarSign className="h-4 w-4" aria-hidden />}

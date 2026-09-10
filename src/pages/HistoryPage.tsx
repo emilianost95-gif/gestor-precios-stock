@@ -156,7 +156,7 @@ export function HistoryPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div data-tour="lista-historial" className="space-y-4">
           {grouped.map(([day, items]) => (
             <Card key={day} className="overflow-hidden">
               <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400 sm:px-5">

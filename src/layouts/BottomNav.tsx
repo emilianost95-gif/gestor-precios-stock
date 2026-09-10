@@ -72,6 +72,7 @@ export function BottomNav() {
           <div className="flex items-center justify-center">
             <button
               type="button"
+              data-tour="nuevo-producto"
               onClick={newProduct}
               aria-label="Agregar producto nuevo"
               className="-mt-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-pop transition active:scale-95 focus-ring"

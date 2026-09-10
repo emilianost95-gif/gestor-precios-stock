@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListSkeleton } from '@/components/ui/Skeleton';
 import { useStore } from '@/context/StoreContext';
+import { useRegisterCopilotContext } from '@/context/CopilotContext';
 import { useProductActions } from '@/context/ProductActionsContext';
 import { useDashboardData } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -38,6 +39,8 @@ export function StockPage() {
       return true;
     });
   }, [movements, typeFilter, debounced]);
+
+  useRegisterCopilotContext({ tab, search: debounced || undefined });
 
   if (loading) return <Card><ListSkeleton rows={6} /></Card>;
 
@@ -83,7 +86,7 @@ export function StockPage() {
 
       {tab === 'alertas' ? (
         <div className="space-y-4">
-          <Card>
+          <Card data-tour="alertas-stock">
             <CardHeader
               title="Sin stock"
               subtitle="Productos agotados que hay que reponer ya"
@@ -96,7 +99,7 @@ export function StockPage() {
               </p>
             ) : (
               <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                {outOfStock.map((p) => (
+                {outOfStock.map((p, index) => (
                   <li key={p.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
                       <PackageX className="h-4 w-4" aria-hidden />
@@ -107,7 +110,11 @@ export function StockPage() {
                         Mínimo sugerido: {formatNumber(p.minStock)} · {p.categoryName}
                       </p>
                     </div>
-                    <Button size="sm" onClick={() => editStock(p)}>
+                    <Button
+                      size="sm"
+                      data-tour={index === 0 ? 'boton-reponer' : undefined}
+                      onClick={() => editStock(p)}
+                    >
                       Reponer
                     </Button>
                   </li>
@@ -129,7 +136,7 @@ export function StockPage() {
               </p>
             ) : (
               <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                {lowStock.map((p) => (
+                {lowStock.map((p, index) => (
                   <li key={p.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
                       <AlertTriangle className="h-4 w-4" aria-hidden />
@@ -141,7 +148,12 @@ export function StockPage() {
                         · Mínimo: {formatNumber(p.minStock)}
                       </p>
                     </div>
-                    <Button size="sm" variant="secondary" onClick={() => editStock(p)}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-tour={index === 0 ? 'boton-reponer' : undefined}
+                      onClick={() => editStock(p)}
+                    >
                       Reponer
                     </Button>
                   </li>

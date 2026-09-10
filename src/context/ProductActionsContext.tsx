@@ -21,6 +21,8 @@ interface ProductActionsValue {
   viewProduct: (product: Product) => void;
   duplicateProduct: (product: Product) => void;
   deleteProduct: (product: Product) => Promise<void>;
+  /** Id del producto cuya ficha está abierta, si hay alguna. */
+  activeProductId: string | null;
 }
 
 const ProductActionsContext = createContext<ProductActionsValue | null>(null);
@@ -93,6 +95,7 @@ export function ProductActionsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ProductActionsValue>(
     () => ({
+      activeProductId: detailProduct?.id ?? null,
       newProduct,
       editProduct,
       editPrice,
@@ -101,7 +104,16 @@ export function ProductActionsProvider({ children }: { children: ReactNode }) {
       duplicateProduct,
       deleteProduct,
     }),
-    [newProduct, editProduct, editPrice, editStock, viewProduct, duplicateProduct, deleteProduct],
+    [
+      detailProduct,
+      newProduct,
+      editProduct,
+      editPrice,
+      editStock,
+      viewProduct,
+      duplicateProduct,
+      deleteProduct,
+    ],
   );
 
   // Los modales leen siempre la versión más fresca del producto desde el store.

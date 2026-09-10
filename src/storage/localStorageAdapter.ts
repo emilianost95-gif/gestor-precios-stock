@@ -1,4 +1,4 @@
-import type { StorageAdapter } from './adapter';
+import type { StorageAdapter, Workspace } from './adapter';
 
 /**
  * Adaptador basado en `localStorage`.
@@ -9,9 +9,28 @@ export class LocalStorageAdapter implements StorageAdapter {
   readonly name = 'localStorage';
   private memoryFallback = new Map<string, string>();
   private available: boolean;
+  private workspace: Workspace = 'real';
 
   constructor() {
     this.available = LocalStorageAdapter.probe();
+  }
+
+  setWorkspace(workspace: Workspace): void {
+    this.workspace = workspace;
+  }
+
+  getWorkspace(): Workspace {
+    return this.workspace;
+  }
+
+  /**
+   * Traduce la clave lógica al espacio activo:
+   *   real → gps:products
+   *   demo → gps:demo:products
+   */
+  private resolve(key: string): string {
+    if (this.workspace === 'real') return key;
+    return key.startsWith('gps:') ? `gps:demo:${key.slice(4)}` : `demo:${key}`;
   }
 
   private static probe(): boolean {
@@ -29,7 +48,8 @@ export class LocalStorageAdapter implements StorageAdapter {
     return this.available;
   }
 
-  private getRaw(key: string): string | null {
+  private getRaw(logicalKey: string): string | null {
+    const key = this.resolve(logicalKey);
     if (!this.available) return this.memoryFallback.get(key) ?? null;
     try {
       return window.localStorage.getItem(key);
@@ -38,7 +58,8 @@ export class LocalStorageAdapter implements StorageAdapter {
     }
   }
 
-  private setRaw(key: string, value: string): void {
+  private setRaw(logicalKey: string, value: string): void {
+    const key = this.resolve(logicalKey);
     this.memoryFallback.set(key, value);
     if (!this.available) return;
     try {
@@ -65,11 +86,33 @@ export class LocalStorageAdapter implements StorageAdapter {
     this.setRaw(key, JSON.stringify(value));
   }
 
-  async remove(key: string): Promise<void> {
+  async remove(logicalKey: string): Promise<void> {
+    const key = this.resolve(logicalKey);
     this.memoryFallback.delete(key);
     if (!this.available) return;
     try {
       window.localStorage.removeItem(key);
+    } catch {
+      /* no-op */
+    }
+  }
+
+  /** Lee una clave global, fuera de los espacios de trabajo. */
+  readGlobal(key: string): string | null {
+    if (!this.available) return this.memoryFallback.get(key) ?? null;
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return this.memoryFallback.get(key) ?? null;
+    }
+  }
+
+  /** Escribe una clave global, fuera de los espacios de trabajo. */
+  writeGlobal(key: string, value: string): void {
+    this.memoryFallback.set(key, value);
+    if (!this.available) return;
+    try {
+      window.localStorage.setItem(key, value);
     } catch {
       /* no-op */
     }

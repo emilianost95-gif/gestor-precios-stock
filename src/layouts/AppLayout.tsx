@@ -2,9 +2,10 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
-import { DemoBanner } from '@/components/DemoBanner';
+import { DemoModeBar } from '@/components/DemoModeBar';
 import { CopilotLauncher } from '@/components/copilot/CopilotLauncher';
 import { CopilotPanel } from '@/components/copilot/CopilotPanel';
+import { TourOverlay } from '@/components/tour/TourOverlay';
 
 export function AppLayout() {
   return (
@@ -26,7 +27,7 @@ export function AppLayout() {
           tabIndex={-1}
         >
           <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
-            <DemoBanner />
+            <DemoModeBar />
             <Outlet />
           </div>
         </main>
@@ -35,6 +36,7 @@ export function AppLayout() {
       <BottomNav />
       <CopilotLauncher />
       <CopilotPanel />
+      <TourOverlay />
     </div>
   );
 }

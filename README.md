@@ -39,10 +39,12 @@ Scripts disponibles:
 ### Primer arranque
 
 La app arranca **vacía**, con las categorías base creadas (Bebidas, Almacén, Limpieza, Lácteos,
-Snacks, Higiene, Otros). Desde el panel principal o desde **Configuración → Datos de demostración**
-se pueden cargar 23 productos ficticios con historial de precios y movimientos, para mostrarle el
-sistema a alguien en un minuto. Un aviso permanente recuerda que esos datos son inventados, y el
-botón **“Limpiar datos de demostración”** deja todo listo para empezar en serio.
+Snacks, Higiene, Otros).
+
+Desde el panel principal o desde **Configuración → Modo demostración** se entra a un espacio aparte
+con 23 productos ficticios, historial de precios y movimientos. Ahí se puede tocar todo sin riesgo:
+la demo vive en otras claves de almacenamiento, así que nada de lo que se haga adentro toca el
+inventario real. Se sale con un botón y el negocio queda exactamente como estaba.
 
 ---
 
@@ -59,7 +61,8 @@ src/
 │   ├── ui/        Design system: Button, Modal, Field, Card, EmptyState, Skeleton
 │   ├── products/  Formulario, edición rápida de precio, detalle, import CSV
 │   ├── stock/     Modal de movimientos de stock
-│   ├── copilot/   Launcher, panel, burbujas, tabla y vista previa de acciones
+│   ├── copilot/   Launcher, panel, burbujas, tablas, acciones y lecciones
+│   ├── tour/      Guía visual con resaltado sobre la aplicación real
 │   └── dashboard/ Tarjetas de métricas e Insights del Copilot
 ├── context/       Estado global y flujos compartidos (React Context)
 ├── data/          Valores por defecto y set de demostración
@@ -67,8 +70,8 @@ src/
 ├── layouts/       AppLayout, Sidebar, TopBar, BottomNav, navegación
 ├── pages/         Una página por sección de la app
 ├── services/      Lógica de negocio pura (cálculos, CSV, respaldos)
-│   └── copilot/   Contexto de inventario, análisis, acciones y cliente de IA
-├── storage/       Capa de persistencia intercambiable
+│   └── copilot/   Contexto, análisis, registro de herramientas, lecciones y cliente de IA
+├── storage/       Capa de persistencia intercambiable (espacios real y demo)
 ├── types/         Modelo de dominio en TypeScript
 └── utils/         Formato, validaciones, archivos, IDs
 ```
@@ -96,8 +99,13 @@ Componentes  →  Context (StoreContext)  →  DataSource  →  StorageAdapter  
 
   Para migrar a la nube alcanza con escribir `SupabaseDataSource implements DataSource` y cambiar
   esas dos líneas. Ni los servicios ni los componentes se enteran.
+- **Espacios de trabajo**: el adaptador traduce cada clave según el espacio activo. Los datos reales
+  viven en `gps:*` y la demostración en `gps:demo:*`. Son dos conjuntos de claves distintos, así que
+  nada de lo que se haga dentro de la demo puede tocar el inventario real: no es una convención, es
+  otra ubicación física. El espacio activo se guarda en `gps:workspace`, fuera de ambos.
 - **`StoreContext`** mantiene el estado en memoria y persiste por colección con un `useEffect` por
-  slice: sólo se reescribe lo que cambió.
+  slice: sólo se reescribe lo que cambió. Al cambiar de espacio corta la persistencia mientras dura
+  el cambio, para que el estado del espacio anterior no pueda escribirse en el nuevo.
 - Los **servicios** (`productService`, `csvService`, `backupService`) son funciones puras: no
   conocen React ni el almacenamiento, y por eso son fáciles de testear y de reutilizar en un backend.
 
@@ -163,6 +171,14 @@ se actualiza en lugar de duplicarse. Hay una plantilla descargable.
 antes de tocar nada: verifica estructura, tipos y campos obligatorios, descarta filas inválidas con
 un aviso, muestra un resumen (productos, categorías, proveedores, movimientos, fecha de exportación)
 y recién entonces pide confirmación explícita.
+
+### Modo demostración
+Un espacio de trabajo separado, no un conjunto de datos cargado encima del real. Al entrar, el
+`StorageAdapter` cambia el prefijo de todas las claves (`gps:*` → `gps:demo:*`) y el estado se
+rehidrata desde ahí. Cambiar precios, mover stock, borrar productos o restaurar un respaldo dentro de
+la demo sólo afecta a ese espacio. Una barra permanente lo recuerda y ofrece **Reiniciar** (volver al
+catálogo ficticio original) y **Salir** (volver a los datos reales). La demo conserva su estado entre
+visitas: si se sale y se vuelve a entrar, está tal cual se dejó.
 
 ### Configuración (`/configuracion`)
 Datos del negocio, moneda (CLP por defecto, con ARS, USD, EUR, MXN, PEN y COP disponibles), tema
@@ -257,6 +273,68 @@ números los calcula la aplicación. Además:
 - No existen acciones destructivas: el Copilot no puede borrar productos, categorías ni proveedores.
 - Cada cambio queda en el historial y en el registro de precios de cada producto.
 
+### El registro de herramientas
+
+El Copiloto no improvisa dónde están los datos. Todas las consultas pasan por
+`src/services/copilot/toolRegistry.ts`, un catálogo de funciones con nombre, descripción y
+parámetros:
+
+| Grupo | Herramientas |
+| --- | --- |
+| Resumen | `obtenerResumenInventario`, `analizarInventario` |
+| Búsqueda | `buscarProducto`, `explicarProducto`, `obtenerProductos` |
+| Stock | `obtenerProductosBajoStock`, `obtenerProductosSinStock`, `prioridadReposicion`, `productosExcesoStock`, `productosSinRotacion` |
+| Precios | `obtenerProductoMasRentable`, `obtenerMargenesBajos`, `productosBajoCosto`, `productosSinPrecioCompra`, `analizarPrecios`, `historialPrecios`, `calcularGanancia`, `calcularValorInventario` |
+| Catálogo | `obtenerProductosPorCategoria`, `obtenerProveedores`, `productosParaRevisar` |
+| Enseñanza | `explicarConcepto`, `quePuedoHacer`, `iniciarTutorial` |
+| Interfaz | `navegarASeccion`, `abrirProducto`, `resaltarElemento` |
+| Escritura | `ajustarPreciosMasivo`, `cambiarPrecioProducto`, `cambiarStockProducto` |
+
+`localEngine.ts` dejó de construir respuestas: ahora sólo **traduce la pregunta a una herramienta**
+(`resolveIntent`) y la ejecuta. Cuando hay backend de IA, el modelo elige la herramienta y devuelve
+`{"tool": "...", "args": {...}}`; el frontend la corre con los datos locales y arma la tabla. En los
+dos caminos las cifras las calcula la aplicación, nunca el modelo.
+
+Cada herramienta puede devolver, además del texto: viñetas con el motivo, una tabla, **botones de
+acción** (`Ver producto`, `Mostrar solo estos`, `Cambiar precio`…), un **efecto de interfaz**
+(navegar, abrir una ficha, arrancar una lección, resaltar un elemento) y una **acción sobre datos**
+que pasa por vista previa y confirmación.
+
+### Contexto de pantalla
+
+`CopilotUiContext` le cuenta al Copiloto dónde está el usuario: sección actual, producto abierto,
+texto buscado, filtros aplicados, pestaña activa y si está en modo demostración. Las páginas lo
+registran con `useRegisterCopilotContext()`. Con eso el asistente cambia sus sugerencias por pantalla
+y el botón **“🤖 ¿Qué puedo hacer?”** propone lo que tiene sentido ahí: en Productos ofrece buscar,
+agregar y cambiar precios; en Stock, explicar las alertas y ver los críticos.
+
+### Guía visual y lecciones
+
+`TourContext` + `TourOverlay` implementan la parte de tutor. Una lección es una lista de pasos; cada
+paso apunta a un atributo `data-tour` que existe en la interfaz real (`fila-producto`,
+`editor-precio`, `alertas-stock`, `boton-reponer`, `insights-copilot`…). El overlay oscurece la
+pantalla, recorta el elemento, lo rodea con un anillo y muestra la explicación al lado.
+
+Detalles que importan:
+
+- **No bloquea**: el usuario puede tocar lo que se le está resaltando y hacer la acción de verdad.
+- Un paso puede **abrir un editor** (`open: 'editor-precio'`) para mostrar el flujo completo.
+- Si el elemento no está en pantalla, el paso se muestra igual como explicación centrada: una lección
+  nunca se rompe.
+- Hay **6 lecciones principales** (agregar producto, cambiar precio, actualizar stock, entender
+  alertas, interpretar ganancias, analizar inventario) más dos extra. El progreso se guarda en
+  `gps:copilot-lessons`, fuera de los espacios de trabajo, y se muestra como “3 de 6”.
+- Al completar las seis aparece el cierre: *“Ya viste lo principal”* con **Crear mi negocio**
+  (sale de la demo), **Seguir explorando** y **Volver al inicio**.
+
+### Conceptos en palabras simples
+
+`concepts.ts` explica margen, markup, stock mínimo, valor de inventario, venta potencial, rotación y
+los tipos de movimiento, **usando un producto real del inventario como ejemplo**:
+
+> El margen es cuánta plata te queda de cada venta después de descontar lo que pagaste.
+> · Esponja Multiuso 3 un · Lo comprás a $590 · Lo vendés a $1.190 · Te quedan $600 por unidad (102%).
+
 ### Insights del dashboard
 
 La sección "Insights del Copilot" corre el mismo análisis sin que el usuario pregunte: stock crítico,
@@ -302,6 +380,14 @@ No hay contraseñas ni secretos en el frontend: todo vive en el dispositivo del 
 `dangerouslySetInnerHTML` en ningún componente, todas las entradas se validan antes de persistirse,
 los archivos importados se validan antes de reemplazar datos y los datos de demostración son
 explícitamente ficticios (proveedores con dominios `.demo` y teléfonos `+56 9 0000 000X`).
+
+Sobre el modo demostración:
+
+- La demo escribe en `gps:demo:*` y los datos reales en `gps:*`. **Ninguna operación hecha en la demo
+  puede alcanzar el inventario real**, porque no comparten claves.
+- Al cambiar de espacio, la persistencia se corta hasta que el estado corresponde al espacio destino,
+  para que no quede una escritura cruzada en el medio.
+- La confirmación de las acciones masivas aclara explícitamente cuando se está en la demo.
 
 Sobre la IA:
 
