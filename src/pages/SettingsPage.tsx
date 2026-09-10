@@ -20,6 +20,8 @@ import { Modal } from '@/components/ui/Modal';
 import { SelectField, TextField, ToggleField } from '@/components/ui/Field';
 import { ImportCSVModal } from '@/components/products/ImportCSVModal';
 import { useStore } from '@/context/StoreContext';
+import { useCopilot } from '@/context/CopilotContext';
+import { COPILOT_API_URL } from '@/services/copilot';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmContext';
 import { snapshotToJSON, validateBackup, type BackupValidationResult } from '@/services/backupService';
@@ -50,6 +52,7 @@ export function SettingsPage() {
   } = useStore();
   const toast = useToast();
   const confirm = useConfirm();
+  const { aiEnabled, openCopilot } = useCopilot();
 
   const [importOpen, setImportOpen] = useState(false);
   const [restoreResult, setRestoreResult] = useState<BackupValidationResult | null>(null);
@@ -250,6 +253,49 @@ export function SettingsPage() {
             checked={settings.confirmBeforeDelete}
             onChange={(checked) => updateSettings({ confirmBeforeDelete: checked })}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Stock Copilot"
+          subtitle="El asistente que analiza tu inventario"
+          icon={<Sparkles className="h-4 w-4" aria-hidden />}
+        />
+        <div className="space-y-3 p-4 sm:p-5">
+          <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+            <span
+              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${aiEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`}
+              aria-hidden
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {aiEnabled ? 'Conectado al servicio de IA' : 'Funcionando con análisis local'}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                {aiEnabled ? (
+                  <>
+                    Las preguntas se procesan en tu backend (<code className="font-mono">{COPILOT_API_URL}</code>
+                    ). La clave de la API vive únicamente en el servidor: nunca viaja al navegador.
+                  </>
+                ) : (
+                  <>
+                    El Copilot responde con el motor de análisis que corre en este dispositivo: no
+                    necesita internet ni servidor, y tus datos no salen de acá. Para sumar respuestas
+                    en lenguaje natural más flexibles, desplegá la función serverless incluida en el
+                    proyecto y configurá <code className="font-mono">VITE_COPILOT_API_URL</code>.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => openCopilot('Resumen del inventario')}
+            icon={<Sparkles className="h-4 w-4" />}
+          >
+            Abrir el Copilot
+          </Button>
         </div>
       </Card>
 

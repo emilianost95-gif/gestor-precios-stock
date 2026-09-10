@@ -3,6 +3,8 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { DemoBanner } from '@/components/DemoBanner';
+import { CopilotLauncher } from '@/components/copilot/CopilotLauncher';
+import { CopilotPanel } from '@/components/copilot/CopilotPanel';
 
 export function AppLayout() {
   return (
@@ -20,7 +22,7 @@ export function AppLayout() {
         <TopBar />
         <main
           id="contenido"
-          className="flex-1 px-4 pb-28 pt-4 sm:px-6 sm:pb-10 sm:pt-6 lg:pb-10"
+          className="flex-1 px-4 pb-32 pt-4 sm:px-6 sm:pb-16 sm:pt-6 lg:pb-24"
           tabIndex={-1}
         >
           <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
@@ -31,6 +33,8 @@ export function AppLayout() {
       </div>
 
       <BottomNav />
+      <CopilotLauncher />
+      <CopilotPanel />
     </div>
   );
 }

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json",
     "build:pages": "VITE_BASE=/gestor-precios-stock/ npm run build"
   },
   "dependencies": {

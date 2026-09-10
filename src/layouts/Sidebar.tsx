@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { AlertTriangle, Store } from 'lucide-react';
+import { AlertTriangle, Sparkles, Store } from 'lucide-react';
 import { NAV_ITEMS } from './navigation';
 import { useStore } from '@/context/StoreContext';
+import { useCopilot } from '@/context/CopilotContext';
 import { useDashboardData } from '@/hooks/useProducts';
 
 export function Sidebar() {
   const { settings } = useStore();
+  const { openCopilot } = useCopilot();
   const { stats } = useDashboardData();
   const alerts = stats.lowStockCount + stats.outOfStockCount;
 
@@ -46,6 +48,14 @@ export function Sidebar() {
             )}
           </NavLink>
         ))}
+        <button
+          type="button"
+          onClick={() => openCopilot()}
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus-ring dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
+          <span className="flex-1 text-left">Stock Copilot</span>
+        </button>
       </nav>
 
       {alerts > 0 && (

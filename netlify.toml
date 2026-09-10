@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# La app llama a /api/copilot; acá se redirige a la función serverless.
+[[redirects]]
+  from = "/api/copilot"
+  to = "/.netlify/functions/copilot"
+  status = 200
+  force = true
+
+# HashRouter no necesita rewrites, pero esto evita 404 si alguien entra a una
+# ruta profunda copiada a mano.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

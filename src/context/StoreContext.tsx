@@ -69,6 +69,14 @@ interface StoreActions {
   createCategory: (input: Partial<CategoryInput> & { name: string }) => Category;
   updateCategory: (id: string, input: Partial<CategoryInput>) => void;
   deleteCategory: (id: string) => void;
+  /**
+   * Aplica un cambio de precio a varios productos de una sola vez.
+   * Es el ÚNICO camino por el que una acción del Copilot puede tocar precios:
+   * recibe la lista ya calculada y confirmada por el usuario, y registra el
+   * historial de cada producto igual que una edición manual.
+   */
+  applyBulkPriceUpdate: (updates: Array<{ id: string; newPrice: number }>, label: string) => number;
+  applyBulkMinStock: (updates: Array<{ id: string; minStock: number }>, label: string) => number;
   createSupplier: (input: SupplierInput) => Supplier;
   updateSupplier: (id: string, input: Partial<SupplierInput>) => void;
   deleteSupplier: (id: string) => void;
@@ -369,6 +377,94 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   /* ------------------------------------------------------------------ */
+  /* Operaciones masivas (usadas por el Copilot, siempre tras confirmar) */
+  /* ------------------------------------------------------------------ */
+  const applyBulkPriceUpdate = useCallback<StoreActions['applyBulkPriceUpdate']>(
+    (updates, label) => {
+      const date = nowISO();
+      const byId = new Map(products.map((p) => [p.id, p]));
+
+      // Se descarta cualquier entrada que no corresponda a un producto real
+      // o que traiga un precio inválido: la validación vive en la app, no en
+      // quien propone la acción.
+      const valid = updates.filter((u) => {
+        const product = byId.get(u.id);
+        return (
+          product !== undefined &&
+          Number.isFinite(u.newPrice) &&
+          u.newPrice >= 0 &&
+          u.newPrice <= 99_999_999 &&
+          u.newPrice !== product.salePrice
+        );
+      });
+      if (valid.length === 0) return 0;
+
+      const priceMap = new Map(valid.map((u) => [u.id, u.newPrice]));
+      setProducts((prev) =>
+        prev.map((p) => {
+          const newPrice = priceMap.get(p.id);
+          return newPrice === undefined ? p : { ...p, salePrice: newPrice, updatedAt: date };
+        }),
+      );
+
+      const changes: PriceChange[] = valid.map((u) => {
+        const product = byId.get(u.id)!;
+        return {
+          id: createId('prc'),
+          productId: u.id,
+          productName: product.name,
+          previousPrice: product.salePrice,
+          newPrice: u.newPrice,
+          date,
+          createdAt: date,
+          updatedAt: date,
+        };
+      });
+      setPriceChanges((prev) => [...changes, ...prev].slice(0, MAX_PRICE_CHANGES));
+
+      log(
+        'precio.modificado',
+        `${label}: se actualizó el precio de ${valid.length} producto${valid.length === 1 ? '' : 's'}`,
+      );
+      return valid.length;
+    },
+    [products, log],
+  );
+
+  const applyBulkMinStock = useCallback<StoreActions['applyBulkMinStock']>(
+    (updates, label) => {
+      const date = nowISO();
+      const byId = new Map(products.map((p) => [p.id, p]));
+      const valid = updates.filter((u) => {
+        const product = byId.get(u.id);
+        return (
+          product !== undefined &&
+          Number.isFinite(u.minStock) &&
+          u.minStock >= 0 &&
+          u.minStock <= 1_000_000 &&
+          u.minStock !== product.minStock
+        );
+      });
+      if (valid.length === 0) return 0;
+
+      const minMap = new Map(valid.map((u) => [u.id, Math.round(u.minStock)]));
+      setProducts((prev) =>
+        prev.map((p) => {
+          const minStock = minMap.get(p.id);
+          return minStock === undefined ? p : { ...p, minStock, updatedAt: date };
+        }),
+      );
+
+      log(
+        'producto.editado',
+        `${label}: se actualizó el stock mínimo de ${valid.length} producto${valid.length === 1 ? '' : 's'}`,
+      );
+      return valid.length;
+    },
+    [products, log],
+  );
+
+  /* ------------------------------------------------------------------ */
   /* Categorías                                                          */
   /* ------------------------------------------------------------------ */
   const createCategory = useCallback<StoreActions['createCategory']>(
@@ -631,6 +727,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       duplicateProduct,
       updateSalePrice,
       registerMovement,
+      applyBulkPriceUpdate,
+      applyBulkMinStock,
       createCategory,
       updateCategory,
       deleteCategory,
@@ -662,6 +760,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       duplicateProduct,
       updateSalePrice,
       registerMovement,
+      applyBulkPriceUpdate,
+      applyBulkMinStock,
       createCategory,
       updateCategory,
       deleteCategory,

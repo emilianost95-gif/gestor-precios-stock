@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageSkeleton } from '@/components/ui/Skeleton';
 import { StatCard } from '@/components/dashboard/StatCard';
+import { CopilotInsights } from '@/components/dashboard/CopilotInsights';
 import { BarList } from '@/charts/BarList';
 import { MovementsChart } from '@/charts/MovementsChart';
 import { useDashboardData } from '@/hooks/useProducts';
@@ -104,6 +105,8 @@ export function DashboardPage() {
           to="/stock"
         />
       </div>
+
+      <CopilotInsights />
 
       {alerts.length > 0 && (
         <Card>
