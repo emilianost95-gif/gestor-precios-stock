@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pantalla de carga. Es un layer-list y no una imagen a pantalla completa: así
+  el logo se centra sin deformarse en cualquier tamaño y orientación, y no hay
+  que mantener una imagen por densidad.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splashBackground" />
+    <item
+        android:width="128dp"
+        android:height="128dp"
+        android:gravity="center">
+        <bitmap android:src="@drawable/splash_logo" />
+    </item>
+</layer-list>

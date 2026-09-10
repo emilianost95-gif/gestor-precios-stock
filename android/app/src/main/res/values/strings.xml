@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Precios y Stock</string>
+    <string name="title_activity_main">Precios y Stock</string>
+    <string name="package_name">com.emilianost.preciosystock</string>
+    <string name="custom_url_scheme">com.emilianost.preciosystock</string>
+</resources>

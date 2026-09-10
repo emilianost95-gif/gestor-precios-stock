@@ -1,0 +1,77 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "com.emilianost.preciosystock"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.emilianost.preciosystock"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    /*
+     * Firma de la versión de publicación.
+     *
+     * La clave NO vive en el repositorio: se pasa por variables de entorno
+     * (en GitHub Actions, desde los Secrets) o por `~/.gradle/gradle.properties`
+     * si se compila en la máquina propia. Si no hay clave, `assembleRelease`
+     * genera igual un APK sin firmar y `assembleDebug` sigue funcionando.
+     */
+    signingConfigs {
+        release {
+            def storePath = System.getenv('ANDROID_KEYSTORE_PATH') ?: (project.findProperty('storeFile') ?: '')
+            if (storePath) {
+                storeFile file(storePath)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: project.findProperty('storePassword')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: project.findProperty('keyAlias')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: project.findProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv('ANDROID_KEYSTORE_PATH') || project.findProperty('storeFile')) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rutas que la aplicación puede compartir con otras apps a través del
+  FileProvider. Sin esto, el menú de "compartir" no puede entregar el CSV ni el
+  respaldo JSON que genera la aplicación.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path name="my_images" path="." />
+    <cache-path name="my_cache_images" path="." />
+    <!-- Carpeta propia de la app: acá se escriben los CSV y los respaldos. -->
+    <external-files-path name="exportaciones" path="." />
+    <external-cache-path name="temporales" path="." />
+</paths>

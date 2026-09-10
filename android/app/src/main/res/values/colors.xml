@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta de la marca, tomada de tailwind.config.js -->
+    <color name="colorPrimary">#1663F5</color>
+    <color name="colorPrimaryDark">#124FE1</color>
+    <color name="colorAccent">#2F82FF</color>
+
+    <!-- Fondo de la pantalla de carga: el slate-900 de la app en modo oscuro. -->
+    <color name="splashBackground">#0F172A</color>
+</resources>
