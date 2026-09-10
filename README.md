@@ -35,6 +35,10 @@ Scripts disponibles:
 | `npm run preview` | Sirve el build de producción localmente |
 | `npm run typecheck` | Sólo la verificación de tipos |
 | `npm run build:pages` | Build con la ruta base de GitHub Pages |
+| `npm run build:app` | Build para empaquetar dentro de la app Android |
+| `npm run android:sync` | Compila la web y la copia al proyecto Android |
+| `npm run android:apk` | Genera el APK de depuración (requiere el SDK de Android) |
+| `npm run android:open` | Abre el proyecto en Android Studio |
 
 ### Primer arranque
 
@@ -373,6 +377,75 @@ modales, cierre con `Escape`, navegación completa por teclado, enlace “Saltar
 propio (`public/sw.js`) que cachea el *shell* de la app y responde offline, metadatos para iOS y
 `theme-color` que sigue el tema activo. Desde el celular: *“Agregar a pantalla de inicio”* y queda
 como una aplicación más.
+
+## 6 bis. Aplicación Android (APK)
+
+La misma base de código se empaqueta como aplicación nativa con **Capacitor**. No hay una segunda
+app ni un segundo código: Capacitor mete el `dist/` dentro de un contenedor Android y lo sirve desde
+`https://localhost`, así que el Copiloto, el modo demostración y el almacenamiento local funcionan
+exactamente igual, pero **sin conexión** y con ícono propio en el cajón de aplicaciones.
+
+```
+capacitor.config.ts          identificador, nombre, splash y teclado
+android/                     proyecto Gradle generado (se versiona)
+src/native/
+  platform.ts                isNativeApp() — en la web devuelve false y no toca nada nativo
+  backStack.ts               pila de capas abiertas para el botón atrás
+  useNativeShell.ts          botón atrás, barra de estado, splash y teclado
+```
+
+### Qué cambia respecto de la web
+
+| Tema | En el navegador | En la app |
+| --- | --- | --- |
+| Botón atrás | no existe | cierra la capa abierta → vuelve de pantalla → doble toque para salir |
+| Exportar CSV / respaldo | descarga del navegador | se escribe el archivo y se abre el menú de compartir |
+| Tipografía | ídem | Inter empaquetada, sin pedidos a Google Fonts |
+| Service worker | activo | desactivado: los archivos ya están en el dispositivo |
+| Barra de estado | — | acompaña el tema claro/oscuro elegido en la app |
+
+Nada de esto es un `if` desparramado por la aplicación: `isNativeApp()` devuelve `false` en la web y
+cada adaptación se queda quieta.
+
+### Compilar el APK
+
+**Sin instalar nada** — GitHub Actions. Al subir a `main`, el workflow `.github/workflows/android.yml`
+compila el APK y lo deja en la pestaña *Actions* → última ejecución → *Artifacts*. También se puede
+lanzar a mano con *Run workflow*, eligiendo `debug` o `release`.
+
+**En la máquina propia** — requiere Android Studio (o el SDK de Android) y JDK 17+:
+
+```bash
+npm install
+npm run android:apk      # compila y deja el APK en android/app/build/outputs/apk/debug/
+npm run android:open     # o abrirlo en Android Studio
+```
+
+`npm run android:sync` recompila la web y la copia al proyecto Android; hay que correrlo después de
+cada cambio en `src/`.
+
+### Firmar la versión de publicación
+
+La clave **no vive en el repositorio**. `android/app/build.gradle` la lee de variables de entorno, y
+el workflow las toma de los *Secrets* del repositorio:
+
+| Secret | Contenido |
+| --- | --- |
+| `ANDROID_KEYSTORE` | el archivo `.jks` codificado en base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | contraseña del almacén |
+| `ANDROID_KEY_ALIAS` | alias de la clave |
+| `ANDROID_KEY_PASSWORD` | contraseña de la clave |
+
+Sin esos secrets, `assembleDebug` sigue funcionando igual y `assembleRelease` genera un APK sin
+firmar. Para crear la clave:
+
+```bash
+keytool -genkey -v -keystore firma.jks -keyalg RSA -keysize 2048 -validity 10000 -alias precios-stock
+base64 -w0 firma.jks          # esto es lo que va en el secret ANDROID_KEYSTORE
+```
+
+> El APK de depuración se instala habilitando *“Instalar apps de origen desconocido”*. Para publicar
+> en Google Play hace falta la versión firmada y, además, un `.aab` (`./gradlew bundleRelease`).
 
 ## 7. Seguridad
 

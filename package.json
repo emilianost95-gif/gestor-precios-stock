@@ -9,15 +9,30 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json",
-    "build:pages": "VITE_BASE=/gestor-precios-stock/ npm run build"
+    "build:pages": "VITE_BASE=/gestor-precios-stock/ npm run build",
+    "build:app": "VITE_DISABLE_SW=true npm run build",
+    "android:sync": "npm run build:app && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/keyboard": "^7.0.6",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
+    "@fontsource/inter": "^5.3.0",
     "lucide-react": "^0.454.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
     "@types/node": "^22.20.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
